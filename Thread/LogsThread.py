@@ -1,7 +1,5 @@
 import threading
-import datetime
-import uuid
-from models.Logs import Logs  # Suponha que a classe Logs esteja em logs.py
+from models.Logs import Logs 
 
 class LogThread(threading.Thread):
     def __init__(self, logs: Logs):

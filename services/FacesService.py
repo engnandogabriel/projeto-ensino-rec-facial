@@ -7,14 +7,11 @@ class FacesService:
         self.aluno = aluno
         self.faces = Faces(self.aluno)
 
-    def storeFaces(self):
+    def storeFaces(self, user_id):
         self.faces.extractFace()
-        self.faces.storageFace()
+        self.faces.storegeFaces(user_id)
     
     def updateFaces(self):
         self.faces.extractFace()
         self.faces.updateFace()
 
-    # @staticmethod
-    # def importFacesService(self):
-    #     return self.faces.importFaces()

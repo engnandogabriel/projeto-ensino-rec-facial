@@ -6,6 +6,9 @@ from PyQt5 import QtGui
 class Camera:
     def __init__(self, cam_num, formulario):
         self.cap = cv2.VideoCapture(cam_num)
+        if not self.cap.isOpened():
+            print(f"Erro ao abrir a câmera {cam_num}")
+            return
         self.formulario = formulario
         self.last_frame = None
         self.update_timer = QTimer()
@@ -13,6 +16,8 @@ class Camera:
 
     def getFrame(self):
         ret, self.last_frame = self.cap.read()
+        if not ret:
+            return self.last_frame
         return self.last_frame
 
     def showCamera(self):
@@ -28,16 +33,23 @@ class Camera:
         self.cap.release()
 
     def TratarFrame(self):
-        # Reduz o tamanho do Frame para aprimorar performance
-        frame_formatado = cv2.resize(self.getFrame(), (0, 0), fx=0.5, fy=0.5)
+        frame = self.getFrame()
+        if frame is None:
+            return None
+        frame_formatado = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
         frame_formatado = frame_formatado[:, :, :: 1]
+        # frame_formatado = cv2.cvtColor(frame_formatado, cv2.COLOR_BGR2RGB)
         return frame_formatado
     
     def updateMovie(self):
         frame = self.TratarFrame()
-        larg = 720
-        alt = int(frame.shape[0]/frame.shape[1]*larg)
-        localizacoesFaces = fr.face_locations(frame)
+        if frame is None:
+            print("Erro: Não foi possível obter um frame válido.")
+            return  
+        # larg = 720
+        # alt = int(frame.shape[0]/frame.shape[1]*larg)
+        larg = 640
+        alt = 480
 
         face_cascade = cv2.CascadeClassifier('deteccao/haarcascade_frontalface_default.xml')
         eye_cascade = cv2.CascadeClassifier('deteccao/haarcascade_eye.xml')
@@ -62,7 +74,7 @@ class Camera:
     def startMovie(self):
         self.movie_thread = MovieThread(self)
         self.movie_thread.start()
-        self.update_timer.start(30)
+        self.update_timer.start(33)
 
 class MovieThread(QThread):
     def __init__(self, camera):
@@ -70,4 +82,6 @@ class MovieThread(QThread):
         self.camera = camera
 
     def run(self):
-        self.camera.acquireMovie(200)
+        frame = self.camera.getFrame()
+        if frame is not None:
+            self.camera.updateMovie()

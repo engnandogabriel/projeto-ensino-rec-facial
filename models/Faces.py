@@ -1,6 +1,5 @@
 import face_recognition as fr
 import numpy as np
-import base64
 import shutil
 
 class Faces:
@@ -26,61 +25,42 @@ class Faces:
     #     urllib.request.urlretrieve(self.aluno.photo, caminhoDaImagem)
         
         # return caminhoDaImagem
-    
-    def storageFace(self) -> None:
-        print('Armazenando Face')
-        # ARMAZENAMENTO LOCAL:
-
+    def storegeFaces(self, user_id) -> None:
         try:
-            backup = self.loadFaces()
-        except:
-            np.savez(self.faces_armazenadas, np.array([]))
-            backup = np.load(self.faces_armazenadas)
+            faces_dict = dict(np.load(self.faces_armazenadas, allow_pickle=True))
+        except (FileNotFoundError, ValueError):  # Se o arquivo não existe ou está corrompido
+            faces_dict = {}
 
-        faces = []
-
-        # Armazena na lista de faces todas os objetos (faces) não nulas que estão na variável de backup
-        for item in backup.files:
-            if (backup[item] != []): 
-                faces.append(backup[item])
-        
-        faces.append(self.face)
-        np.savez(self.faces_armazenadas, *faces)
-
-        # Abaixo adiciona-se o nome e a matrícula dos alunos em um arquivo local no seguinte formato: matricula1:aluno1/matricula2:aluno2/.../matriculaN:alunoN/
-        with open("data/backup/nomes.txt", "a") as arquivo:
-            arquivo.write("%s:%s/" % (self.aluno.registration_code, self.aluno.name))
-
+        faces_dict[user_id] = self.face
+        np.savez(self.faces_armazenadas, **faces_dict)
+       
     def updateFace(self) -> None:
-        print('Atualizanco Face')
+        print('Atualizando Face')        
         backup = self.loadFaces()
-        faces = []
-        for item in backup.files:
-            if backup[item] != []:
-                faces.append(backup[item])
+        backup[self.aluno.registration_code] = self.face
+        np.savez(self.faces_armazenadas, **backup)
 
-        matriculaAluno = self.dados.matriculas
-
-        indexAluno = matriculaAluno.index(self.aluno.registration_code)
-
-        faces[indexAluno] = self.face
-        np.savez(self.faces_armazenadas, *faces)
-
-        tobase64 = base64.b64encode(self.face)
-
-        #requests.patch("{}/atualized/id/{}".format(self.api, self.aluno.matricula),{"atualized": False, "caracteres": tobase64})
-
-    def importFaces(self) -> any:
+       
+    def importFaces(self) -> list:
         try:
-            backup = np.load(self.faces_armazenadas)
+            backup = dict(np.load(self.faces_armazenadas, allow_pickle=True))
             faces = []
+            for user_id, face_matrix in backup.items():
+                if face_matrix.size != 0:
+                    faces.append((user_id, face_matrix))
+            dict_datas = {user_id: face_matrix for user_id, face_matrix in faces}
+            
+            return list(dict_datas.keys()), list(dict_datas.values())
+          
+        except Exception as e:
+            print(e)
+            print("Não foi possível ler os dados")
 
-            for item in backup.files:
-                if backup[item] != []:
-                    faces.append(backup[item])
-            return faces
-        except:
-            print("Não foi possivel ler os dados")
-
-    def loadFaces(self) -> any:
-        return np.load(self.faces_armazenadas)
+    def loadFaces(self) -> dict:
+        try:
+            data = np.load(self.faces_armazenadas)
+            faces_dict = {key: data[key] for key in data.files}
+            return faces_dict
+        except FileNotFoundError:
+            print("Arquivo de faces não encontrado. Retornando dicionário vazio.")
+            return {}  # Retorna um dicionário vazio caso o arquivo não exista
